@@ -6,13 +6,22 @@
 ### National Educational Resource Database on Schools (NERD$) Data
 
 * 2018-2019 Nebraska Spending on K-12 Schools
+* [Link to original data](https://georgetown.app.box.com/s/1dknmu4bjltrehzdygh63xnzebcki4ni)
 * Nesting at: 
   * District
   * School 
 
+### British Social Attitudes (BSA) Survey
+
+* Selected participant data about women's reproductive health from 1983 to 1986 at 1-year intervals
+* [Link to original data](http://www.bristol.ac.uk/cmm/learning/support/datasets/)
+* Nesting at:
+ * District
+ * Respondent
+
 ### Programme for International Student Assessment (PISA) Longitudinal Dataset
 
-* Selected Student Data from 2000 to 2018 at 3-year Intervals
+* Selected student data from 2000 to 2018 at 3-year intervals
 * [Link to `learningtower` data package](https://github.com/kevinwang09/learningtower)
 * Nesting at:
   * Country

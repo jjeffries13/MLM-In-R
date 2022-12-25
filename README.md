@@ -15,9 +15,9 @@
 
 * Selected participant data about women's reproductive health from 1983 to 1986 at 1-year intervals
 * [Link to original data](http://www.bristol.ac.uk/cmm/learning/support/datasets/)
-* Nesting at:
- * District
- * Respondent
+* Nesting at: 
+  * District
+  * Respondent 
 
 ### Programme for International Student Assessment (PISA) Longitudinal Dataset
 

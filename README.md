@@ -28,7 +28,7 @@
   2. School
   3. Student
 
-### Threat Reaction Time Experiment
+### Threat Reaction-Time Experiment
 
 * Simulated dataset of 200 participants who took part in a timed threat-imaging experiment.
 * Nesting at Subject

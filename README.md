@@ -1,6 +1,9 @@
 # Multilevel Modeling in R Bootcamp <img align="right" width="100" height="105" src="https://cdn-icons-png.flaticon.com/512/848/848628.png"> 
 ![Generic badge](https://img.shields.io/badge/Rversion-4.2.1-blue.svg)
 
+All files in this repository can be downloaded at once by clicking the green "Code" button and downloading the ZIP file. Otherwise, you can choose to individually download datasets and copy + paste the syntax from each .Rmd file directly into an Rmarkdown file that you have locally created. Either way works perfectly fine!
+
+
 ## Datasets
 
 ### National Educational Resource Database on Schools (NERD$) Data

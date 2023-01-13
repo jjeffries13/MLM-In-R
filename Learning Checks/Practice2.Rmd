@@ -1,0 +1,122 @@
+---
+title: "Learning Check 2"
+author: "Enter Name Here"
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages here using library() or p_load() function from {pacman} package
+# Import NERD$ data ("NE_EdSpending_Jan28th_22") using readxl or similar package
+```
+
+## Practice Problem 1
+
+Create a scatterplot of per-pupil expenditure on students ("pp_total_raw_NE") on the y-axis and school enrollment ("enroll_raw_NE") on the x-axis that tracks (i.e., groups) each district's schools by color via the `{ggplot2}` package. This type of plot is sometimes called a "spaghetti plot". Use the below code to filter out school districts with fewer than 2 schools and schools that involve missing data on this variable.
+
+```{r, eval = F}
+data_new <- data |> 
+  group_by(district_ID) |>
+  filter(n() > 1) 
+
+data_new1 <- data_new |> drop_na(pp_total_raw_NE)
+
+data_new1 %>% 
+  ggplot(mapping = aes(x = enroll_raw_NE, y = pp_total_raw_NE, group = factor(district_ID))) +
+  geom_point() 
+
+# Add geom_smoothing() bit from Ch. 4 of Shaw & Fleck
+# Within the geom_smoothing() function, I recommend: `size = .1` and `fullrange = FALSE`
+
+# Insert spaghetti plot here
+# Remember to delete eval = F in the chunk header so your code is evaluated
+```
+
+Should all school districts be treated as having equal intercepts and slopes? This is how the regression model in Learning Check 1 treated the data -- one intercept and one slope! This does not seem appropriate..
+
+Let's try out our first multilevel model!
+
+## Practice Problem 2 
+
+Using `{lmer}`, ceate a "null", empty, unconditional, or intercept-only model with "pp_total_raw_NE" as the outcome and "district_ID" as the grouping variable. An empty model requires that you have no independent variables predicting the outcome. Here is how this function requires its models to be formatted:
+
+`lmer(DV ~ 1 + IV1 + IV2 + ... + IVp + (random_effect1 + random_effect2 + ... + random_effectp | grouping_variable), data = dataset)`
+
+The initial 1 in the above code is the *fixed* intercept effect. Inputting 1 in place of random_effects serves as the *random* intercept effect. 
+
+```{r}
+# Create your empty/null model here
+```
+
+How many parameters were estimated (i.e., how many random and fixed effects)? 
+
+What is the fixed effect of the intercept? 
+
+What is the variance of districts around this intercept?
+
+What is the variance of schools around their district's mean?
+
+## Practice Problem 3
+
+Using the output from the null model, answer the following questions:
+
+1. What is the variance attributed to district ($\tau^2_0$)? 
+
+2. What is variance attributed to schools/students ($\sigma^2_0$)?
+
+3. What is the total variance ($\tau^2_0 + \sigma^2_0 = total$)?
+
+4. What is the percent of total variance attributed to district membership?
+
+5. What is the percent of total variance attributed to school membership?
+
+6. Compute the intraclass correlation (ICC) by hand. In laymen terms, this would be the (*variance attributed to district*) / (*total variance*). Here is the equation to do so: 
+
+<p style="text-align: center;"> $\frac{\tau^2_0}{\tau^2_0+\sigma^2_0}$ </p>
+
+Compute the intraclass correlation coefficient (ICC) of the above empty model by using the `{performance}` package.
+
+```{r}
+# Compute ICC here
+```
+
+Now, use the VarCorr() function from the `{lme4}` package to partition the variance into the Subject (district's) and Residual (school's) variances. This is located at the very bottom of the Whalley text's Variance Partition & ICC module in Ch. 10. 
+
+```{r}
+# Partition ICC variances here
+```
+
+Do these calculations match between the packages? Do they match your hand calculations?
+
+## Practice Problem 3
+
+Using the null model, insert a level 1 fixed predictor. Insert grade level ("level") as an independent or explanatory variable in the model. If the fixed predictor was a level 2 variable, it would be entered in the same way, but there is not a level 2 predictor of interest in the present data. 
+
+```{r}
+# Create fixed factor model
+```
+
+A 1-unit increase in grade level is associated with what change in total per-pupil expenditure? Interpret regardless of fixed effect significance. How much variance at level 1 was "soaked up" by including this variable into the model? *Hint:* use the `sigma()` function as found in the example in 5.2.2 of the Shaw & Flake text. 
+
+```{r}
+# Compute the variance reduction calculations
+```
+
+Calculate the conditional ICC of the new fixed effect model. 
+
+```{r}
+# Calculate the ICC of new model here
+```
+
+Now that you have entered a fixed effect into the model, reference the conditional (adjusted) ICC. What percent of total per-pupil expenditures is accounted for by grade level?
+
+If you want extra practice, add school enrollment ("enroll_raw_NE") as a level 1 predictor into the conditional model and then re-calculate the reduction in variance and the new conditional ICC. 
+
+```{r}
+# Extra practice model
+```

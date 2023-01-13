@@ -1,0 +1,164 @@
+---
+title: "Learning Check 3"
+author: "Enter Name Here"
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require(pacman)){
+    install.packages("pacman")
+    library(pacman)
+}
+
+# Load packages here using library() or p_load() function from {pacman} package
+# Import British Social Attitudes (BSA) data ("AbOpinion.csv") using {utils}'s read.csv() or similar package
+```
+
+### There are code chunks throughout this file that include `eval = F` in the header to run the Rmarkdown file. Do not forget to delete this before entering and running your own code!
+
+## Practice Problem 1
+
+The British Social Attitudes (BSA) survey manual can be found [here](https://github.com/jjeffries13/MLM-In-R/blob/main/Practice%20Data/Manual_AbOpinionData.txt). The data consists of 264 respondents who were surveyed over the span of 4 years (1983, 1984, 1985 and 1986). 9 variables were recorded for each of the 1056 recorded rows. 
+
+Sex is coded as 0 = male and 1 = female.
+
+Religion is categorized as:
+
+* Roman Catholic = 1
+* Protestant/Church of England = 2
+* Other religion = 3
+* No religion = 4
+
+Using the BSA data, create a model that predicts support of women's reproductive rights by sex, religion, and age (use the variable "Ages" **NOT** "Age") where grouping occurs at "Districts". Ensure that sex and religion are *factors* in the model. For example, using `factor(sex)` within the `lme4` model will treat this variable as a 0/1 dummy code. See the Whalley Ch. 10.5 Contrasts and Followup Tests in `lmer` for an example of this.
+
+```{r}
+# Insert conditional model here
+```
+
+Use the `emmeans` package to use the conditional model to estimate marginal means for sex and religion separately. 
+
+```{r}
+# Estimated marginal means for sex
+# Estimated marginal means for religion
+```
+
+What combination of sex and religion likely leads to greater support of women's reproductive rights?
+
+Extract the estimates for sex and plot them by using `ggplot2`. Code for this task can be found in Ch. 10.5 of Whalley's text. Make sure that `conf.int = T` within the `broom::tidy()` function to include vertical bars for confidence intervals. 
+
+```{r}
+# Plot emmeans here
+```
+
+Compare each religion to one another using the `contrast()` function and tukey's method. 
+
+```{r}
+# Religion contrasts
+```
+
+## Practice Problem 2
+
+Add social class ("SocClass") into the conditional model from above. 
+
+```{r}
+# Insert new conditional model here
+```
+
+Using the `anova()` function, compare model deviances to see if inclusion of social class was worthwhile. Include `refit = FALSE` in the `anova()` function. 
+
+```{r}
+# Deviance test here
+```
+
+What is the number of parameters in each model? What is the difference in degrees of freedom?
+
+Which model had lower deviance values (AIC, BIC, and deviance)? Did the model *significantly* improve when respondent's social class was included as a predictor?
+
+## Practice Problem 3
+
+Center each respondent's age around the district that they live in. This is considered centering within a cluster (CWC). Then, check to see if the mean age within each cluster is zero (or very close to zero).
+
+```{r}
+# Perform centering at the cluster/district level
+```
+
+Center each respondent's age around the entire sample. This is considered grand mean centering (CGM). Then, check to see if the mean age across the sample is zero (or very close to zero).
+
+```{r}
+# Perform grand mean centering here
+```
+
+Use the model from the above Practice Problem 1 but insert the version of age that is centered within district (CWC) in place of the original age variable. Remember to insert the mean age variable along with this, as explained in Ch. 8 of the Shaw & Flake text. 
+
+```{r}
+# Conditional model with CWC age variable in place of original age
+```
+
+A one-unit increase in age *within* a district is associated with what amount of change in support of women's reproductive rights? 
+
+A one-unit increase in the *district's average age* is associated with what amount of change in support of women's reproductive rights? 
+
+Use the model from the above Practice Problem 1 but insert the version of age that is grand-mean centered (CGM) in place of the original age variable. Remember to insert the mean age variable along with this, as explained in Ch. 8 of the Shaw & Flake text. 
+
+```{r}
+# Conditional model with CGM age variable in place of original age
+```
+
+A one-unit increase in age *within* a district relative to the grand mean is associated with what amount of change in support of women's reproductive rights? 
+
+For two people who are of the same age, what is the amount of change in support of women's reproductive rights for the person who lives in a district of higher average age? That is, for every 1 unit increase in CGM age, what is the associated change in their support of reproductive rights?
+
+## Practice Problem 4
+
+Simulate the data using the below code:
+
+```{r, eval = F}
+p_load("GGally", "simr", "dplyr", "lme4", "lmerTest", install = T)
+
+set.seed(1111)
+sim_data <- data.frame(
+  x = rep(0:1, 10), # Binary predictor/explanatory variable; either 0 or 1
+  g = rep(1:10, 20), # 20 clusters; between 1 and 10
+  y = rnorm(100) # 100 values of outcome variable from normal distribution
+)
+
+ggpairs(sim_data)
+```
+
+Create a multilevel model using `lmer()` where y is the outcome, x is the predictor, and g is the grouping variable. Also include a random intercept. 
+
+```{r}
+# Create model using simulated data, "sim_data"
+```
+
+Use `powerSim` to compute the observed power of a fixed effect of 0.35 by using the following code: 
+
+```{r, eval = F}
+fixef(model)['x'] <- .35
+
+powerSim(model, nsim = 100, progress = F)
+```
+
+Increase the fixed effect to be 0.70 and calculate the observed power.
+
+```{r, eval = F}
+# Power of fixed effect of .70
+```
+
+How does increasing the fixed effect impact observed power?
+
+Increase the variance of clustering parameter, *g*, to 0.4 and re-calculate the observed power. This creates an ICC = 0.29, where $\frac{\tau^2_0}{\tau^2_0+\sigma^2_0} = \frac{0.4}{0.4 + 1} = 0.2857$. Continue using a fixed effect of 0.70.
+
+```{r, eval = F}
+VarCorr(model)['g'] <- .4
+
+powerSim(model, nsim = 100, progress = F)
+```
+
+How does increasing the variability between clusters impact observed power?

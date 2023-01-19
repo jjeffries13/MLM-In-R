@@ -1,0 +1,230 @@
+---
+title: "Learning Check 3"
+author: "Enter Name Here"
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require(pacman)){
+    install.packages("pacman")
+    library(pacman)
+}
+
+# Load packages here using library() or p_load() function from {pacman} package
+# Import British Social Attitudes (BSA) data ("AbOpinion.csv") using {utils}'s read.csv() or similar package
+
+p_load("lme4", "lmerTest", "emmeans", "utils", "simr", "broom", "magrittr", "ggplot2", "dplyr", install = T)
+
+BSA_Data <- read.csv("/Users/jayjeffries/Desktop/MLM/Practice/MLMBootcamp/Practice Data/AbOpinion.csv")
+```
+
+### There are code chunks throughout this file that include `eval = F` in the header to run the Rmarkdown file. Do not forget to delete this before entering and running your own code!
+
+## Practice Problem 1
+
+The British Social Attitudes (BSA) survey manual can be found [here](https://github.com/jjeffries13/MLM-In-R/blob/main/Practice%20Data/Manual_AbOpinionData.txt). The data consists of 264 respondents who were surveyed over the span of 4 years (1983, 1984, 1985 and 1986). 9 variables were recorded for each of the 1056 recorded rows. 
+
+Sex is coded as 0 = male and 1 = female.
+
+Religion is categorized as:
+
+* Roman Catholic = 1
+* Protestant/Church of England = 2
+* Other religion = 3
+* No religion = 4
+
+Using the BSA data, create a model that predicts support of women's reproductive rights by sex, religion, and age (use the variable "Ages" **NOT** "Age") where grouping occurs at "Districts". Ensure that sex and religion are *factors* in the model. For example, using `factor(sex)` within the `lme4` model will treat this variable as a 0/1 dummy code. See the Whalley Ch. 10.5 Contrasts and Followup Tests in `lmer` for an example of this.
+
+```{r}
+cond_mod <- lmer(Support ~ factor(Sex) + factor(Religion) + Ages + 1 + (1 | Districts), data = BSA_Data) 
+summary(cond_mod)
+```
+
+Use the `emmeans` package to use the conditional model to estimate marginal means for sex and religion separately. 
+
+```{r}
+emm_sex <- emmeans(cond_mod, "Sex")
+contrast(emm_sex, simple = "each") # simple contrasts of sex -- no significant difference between sex 
+contrast(emm_sex, "tukey") |> 
+  tidy() # confirms that there are no sig. difference in pairwise comparisons
+
+emm_religion <- emmeans(cond_mod, "Religion")
+contrast(emm_religion, simple = "each") # simple contrasts religion -- but which specific pairs are different?
+
+emm_sexbyreligion <- emmeans(cond_mod, c("Sex", "Religion"))
+emm_sexbyreligion 
+```
+
+What combination of sex and religion likely leads to greater support of women's reproductive rights?
+
+|          Greatest support of reproductive rights can be found from non-religious males, with an estimated marginal mean of $M_{Male,Non-religious} = 5.71, SE = .150$.
+
+Extract the estimates for sex and plot them by using `ggplot2`. Code for this task can be found in Ch. 10.5 of Whalley's text. Make sure that `conf.int = T` within the `broom::tidy()` function to include vertical bars for confidence intervals. 
+
+```{r}
+# Plot emmeans here
+emm_sex_df <-
+  emm_sex |>
+  broom::tidy(conf.int = T)
+
+emm_sex_df %>%
+  ggplot(aes(Sex, estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange() +
+  scale_x_continuous(breaks = c(0, 1)) +
+  labs(y = "Support", x = "Sex") + 
+  ggtitle("Women's Reproductive Rights by Sex") +
+  theme_minimal() + 
+  theme(text = element_text(family = "Times New Roman"))
+```
+
+Compare each religion to one another using the `contrast()` function and tukey's method. 
+
+```{r}
+contrast(emm_religion, "tukey") |>
+  tidy() # sig. difference in many pairwise comparisons
+```
+
+## Practice Problem 2
+
+Add social class ("SocClass") into the conditional model from above. 
+
+```{r}
+cond_mod2 <- lmer(Support ~ factor(Sex) + factor(Religion) + Ages + factor(SocClass) + 1 + (1 | Districts), data = BSA_Data) 
+summary(cond_mod2)
+```
+
+Using the `anova()` function, compare model deviances to see if inclusion of social class was worthwhile. Include `refit = TRUE` in the `anova()` function. 
+
+```{r}
+anova(cond_mod, cond_mod2, refit = T)
+```
+
+What is the number of parameters in each model? What is the difference in degrees of freedom?
+
+|          There are 8 parameters estimated in the first conditional model and 10 in the second (augmented) conditional model. 
+
+Which model had lower deviance values (AIC, BIC, and deviance)? Did the model *significantly* improve when respondent's social class was included as a predictor?
+
+|          The first conditional model without Social Class had better AIC and BIC values, but a worse deviance value. The model that included Social Class did not significantly change model fit $\chi^2_{Diff}(2)=2.6166, p = .2703$. 
+
+## Practice Problem 3
+
+Center each respondent's age around the district that they live in. This is considered centering within a cluster (CWC). Then, check to see if the mean age within each cluster is zero (or very close to zero).
+
+```{r}
+# Perform centering at the cluster/district level
+BSA_Data %<>% # this symbol is an assignment operator and pipe, equivalent to data <- data %>% 
+  group_by(Districts) %>% 
+  mutate(Age_mean = mean(Ages))
+
+BSA_Data %<>%
+  mutate(Age_CWC = Ages - Age_mean)
+```
+
+Center each respondent's age around the entire sample. This is considered grand mean centering (CGM). Then, check to see if the mean age across the sample is zero (or very close to zero).
+
+```{r}
+# Perform grand mean centering here
+BSA_Data %<>%
+  ungroup() %>% # remove the grouping by school that we added in the CWC section
+  mutate(Age_GrandMean = mean(Ages))
+
+BSA_Data %<>%
+  mutate(Age_GMC = Ages - Age_GrandMean)
+```
+
+Use the model from the above Practice Problem 1 but insert the version of age that is centered within district (CWC) in place of the original age variable. Remember to insert the mean age variable along with this, as explained in Ch. 8 of the Shaw & Flake text. 
+
+```{r}
+# Conditional model with CWC age variable in place of original age
+cond_mod_CWC <- lmer(Support ~ factor(Sex) + factor(Religion) + Age_CWC + Age_mean + 1 + (1 | Districts), data = BSA_Data)
+summary(cond_mod_CWC)
+```
+
+A one-unit increase in age *within* a district is associated with what amount of change in support of women's reproductive rights? 
+
+|          For every one-unit increase in age within a district, there is a 0.0062 decrease in support of women's rights ($\gamma_{10}=-0.0062, SE = .004, t(1006.39)=-1.590, p = .112$). This is not statistically significant and is the within-district effect.
+
+A one-unit increase in the *district's average age* is associated with what amount of change in support of women's reproductive rights? 
+
+|          A one-unit increase in the district's average age is associated with a 0.0288 increase in support of women's reproductive rights ($\gamma_{01}=-0.0062, SE = 0.0128, t(52.604)=-2.244, p = .029$). This is statistically significant and is a between-district effect, indicating the effect of a district’s average age on one's support of reproductive rights increases as the district's average age increases.
+
+Use the model from the above Practice Problem 1 but insert the version of age that is grand-mean centered (CGM) in place of the original age variable. Remember to insert the mean age variable along with this, as explained in Ch. 8 of the Shaw & Flake text. 
+
+```{r}
+# Conditional model with CGM age variable in place of original age
+cond_mod_GMC <- lmer(Support ~ factor(Sex) + factor(Religion) + Age_GMC + Age_mean + 1 + (1 | Districts), data = BSA_Data)
+summary(cond_mod_GMC)
+```
+
+A one-unit increase in age *within* a district relative to the grand mean is associated with what amount of change in support of women's reproductive rights? 
+
+|          For every one-unit increase in age within a district, there is a 0.0062 decrease in support of women's rights ($\gamma_{10}=-0.0062, SE = .004, t(1006.39)=-1.590, p = .112$). This is not statistically significant and is the within-district effect.
+
+For two people who are of the same age, what is the amount of change in support of women's reproductive rights for the person who lives in a district of higher average age? That is, for every 1 unit increase in CGM age, what is the associated change in their support of reproductive rights?
+
+|          For every one-unit increase in age within a district, there is a 0.0062 decrease in support of women's rights ($\gamma_{01}=-0.0350, SE = 0.013, t(61.11)=-2.628, p = 0.011$). This is statistically significant and is the contextual effect, indicating the effect of district average age on support of women's reproductive rights at the same level of age.
+
+## Practice Problem 4
+
+Simulate the data using the below code:
+
+```{r}
+p_load("GGally", "simr", "dplyr", "lme4", "lmerTest", install = T)
+
+set.seed(1111)
+sim_data <- data.frame(
+  x = rep(0:1, 10), # Binary predictor/explanatory variable; either 0 or 1
+  g = rep(1:10, 20), # 20 clusters; between 1 and 10
+  y = rnorm(100) # 100 values of outcome variable from normal distribution
+)
+
+ggpairs(sim_data)
+```
+
+Create a multilevel model using `lmer()` where y is the outcome, x is the predictor, and g is the grouping variable. Also include a random intercept. 
+
+```{r}
+# Create model using simulated data
+sim_mod <- lmer(y ~ x + 1 + (1 | g), data = sim_data)
+summary(sim_mod)
+```
+
+Use `powerSim` to compute the observed power of a fixed effect of 0.35 by using the following code: 
+
+```{r}
+fixef(sim_mod)['x'] <- .35
+
+powerSim(sim_mod, nsim = 100, progress = F)
+```
+
+Increase the fixed effect to be 0.70 and calculate the observed power.
+
+```{r}
+# Power of fixed effect of .70
+fixef(sim_mod)['x'] <- .70
+
+powerSim(sim_mod, nsim = 100, progress = F)
+```
+
+How does increasing the fixed effect impact observed power?
+
+|          Increasing the fixed effect increased the observed power from 21% (with a fixed effect = .35) to 61% (with a fixed effect = .70). 
+
+Increase the variance of clustering parameter, *g*, to 0.4 and re-calculate the observed power. This creates an ICC = 0.29, where $\frac{\tau^2_0}{\tau^2_0+\sigma^2_0} = \frac{0.4}{0.4 + 1} = 0.2857$. Continue using a fixed effect of 0.70.
+
+```{r}
+VarCorr(sim_mod)['g'] <- .4
+
+powerSim(sim_mod, nsim = 100, progress = F)
+```
+
+How does increasing the variability between clusters impact observed power?
+
+|          Increasing the variability between clusters decreased the observed power from 61% (g = .10) to 29% (g = .40). 

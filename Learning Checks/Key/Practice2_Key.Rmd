@@ -1,0 +1,189 @@
+---
+title: "Learning Check 2"
+author: "Enter Name Here"
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages here using library() or p_load() function from {pacman} package
+# Import NERD$ data ("NE_EdSpending_Jan28th_22") using readxl or similar package
+
+library(pacman)
+
+p_load("readxl", "lme4", "ggplot2", "tidyverse", "lmerTest", "stats", "performance", install = T)
+
+NERD_data <- read_xlsx("/Users/jayjeffries/Desktop/MLM/Practice/MLMBootcamp/Practice Data/NE_EdSpending_Jan28th_22.xlsx", na = "NA")
+
+NERD_data$district_ID <- factor(NERD_data$district_ID)
+```
+
+## Practice Problem 1
+
+Create a scatterplot of per-pupil expenditure on students ("pp_total_raw_NE") on the y-axis and school enrollment ("enroll_raw_NE") on the x-axis that tracks (i.e., groups) each district's schools via the `{ggplot2}` package. This type of plot is sometimes called a "spaghetti plot". Use the below code to filter out school districts with fewer than 2 schools and schools that involve missing data on this variable.
+
+```{r, message = F}
+NERD_data_new <- NERD_data |> 
+  group_by(district_ID) |>
+  filter(n() > 1) 
+
+NERD_data_new <- NERD_data_new |> drop_na(pp_total_raw_NE)
+
+options(scipen = 999) # Gets rid of scientific notation for y-axis scale
+NERD_data_new %>% 
+  ggplot(aes(x = enroll_raw_NE, y = pp_total_raw_NE, group = factor(district_ID))) +
+  geom_point(shape = 4, color = "gray") +
+  geom_smooth(method = "lm", se = F, fullrange = F, size = .1, color = "orange") + 
+  labs(x = "School Enrollment", y = "Per-Pupil Expenditure") + 
+  ggtitle("Spaghetti Plot of School Enrollment & Per-Pupil Expenditure for Nebraska") +
+  theme_minimal()
+
+# Add geom_smoothing() bit from Ch. 4 of Shaw & Fleck
+# Within the geom_smoothing() function, I recommend: `size = .1` and `fullrange = FALSE`
+```
+
+Should all school districts be treated as having equal intercepts and slopes? This is how the regression model in Learning Check 1 treated the data -- one intercept and one slope! This does not seem appropriate..
+
+Let's try out our first multilevel model!
+
+## Practice Problem 2 
+
+Using `{lmer}`, ceate a "null", empty, unconditional, or intercept-only model with "pp_total_raw_NE" as the outcome and "district_ID" as the grouping variable. An empty model requires that you have no independent variables predicting the outcome. Here is how this function requires its models to be formatted:
+
+`lmer(DV ~ 1 + IV1 + IV2 + ... + IVp + (random_effect1 + random_effect2 + ... + random_effectp | grouping_variable), data = dataset)`
+
+The initial 1 in the above code is the *fixed* intercept effect. Inputting 1 in place of random_effects serves as the *random* intercept effect. 
+
+```{r}
+library(lmerTest)
+
+null_mod <- lmer(pp_total_raw_NE ~ 1 + (1 | district_ID), data = NERD_data)
+null_mod |> summary()
+
+logLik(null_mod)
+```
+
+How many parameters were estimated (i.e., how many random and fixed effects)? 
+
+3 parameters were estimated (i.e., *df* = 3). 
+
+What is the fixed effect of the intercept? 
+
+$\gamma_{00}=18291.1, t(248.4)=50.25, p < .001$.
+
+What is the variance of districts around this intercept?
+
+$\tau_{0}=25,346,146; SD = 5,034$.
+
+What is the variance of schools around their district's mean?
+
+$\sigma^2=17,875,427; SD = 4,228$.
+
+## Practice Problem 3
+
+Using the output from the null model, answer the following questions:
+
+1. What is the variance attributed to district ($\tau^2_0$)? 
+
+$\tau_{0}=25,346,146; SD = 5,034$.
+
+2. What is variance attributed to schools/students ($\sigma^2_0$)?
+
+$\sigma^2=17,875,427; SD = 4,228$.
+
+3. What is the total variance ($\tau^2_0 + \sigma^2_0 = total$)?
+
+Total variance = $25,346,146+17,875,427=43,221,573$.
+
+4. What is the percent of total variance attributed to district membership?
+
+Percent of total variance attributed to district membership = $\frac{25,346,146}{43,221,573}=.5864=58.64%$.
+
+5. What is the percent of total variance attributed to school membership?
+
+Percent of total variance attributed to school membership = $\frac{17,875,427}{43,221,573}=.4136=41.36%$.
+
+6. Compute the intraclass correlation (ICC) by hand. In laymen terms, this would be the (*variance attributed to district*) / (*total variance*). Here is the equation to do so: 
+
+<p style="text-align: center;"> $\frac{\tau^2_0}{\tau^2_0+\sigma^2_0}$ </p>
+
+$\frac{25,346,146}{43,221,573}=.5864=58.64%$.
+
+Compute the intraclass correlation coefficient (ICC) of the above empty model by using the `{performance}` package. Conversation on adjusted vs. unadjusted ICC can be found [here](https://easystats.github.io/performance/reference/icc.html#:~:text=Adjusted%20and%20unadjusted%20ICC&text=While%20the%20adjusted%20ICC%20only,2017).
+
+```{r}
+icc(null_mod)
+```
+
+Now, use the VarCorr() function from the `{lme4}` package to partition the variance into the Subject (district's) and Residual (school's) variances. This is located at the very bottom of the Whalley text's Variance Partition & ICC module in Ch. 10. 
+
+```{r}
+VarCorr(null_mod)
+
+VarCorr(null_mod) %>%
+  as_data_frame() %>%
+  mutate(ICC = vcov/sum(vcov)) %>%
+  select(grp, ICC)
+
+Tau0 <- VarCorr(null_mod)$district_ID[1]
+
+lower_bound <- null_mod@beta - 1.96*sqrt(Tau0)
+upper_bound <- null_mod@beta + 1.96*sqrt(Tau0)
+
+lower_bound
+upper_bound 
+# Fixed effect could be between 8423.475 & 28158.7
+```
+
+Do these calculations match between the packages? Do they match your hand calculations?
+
+**Yes!**
+
+## Practice Problem 3
+
+Using the null model, insert a level 1 fixed predictor. Insert grade level ("level") as an independent or explanatory variable in the model. If the fixed predictor was a level 2 variable, it would be entered in the same way, but there is not a level 2 predictor of interest in the present data. 
+
+```{r}
+fixeff_mod <- lmer(pp_total_raw_NE ~ 1 + level + (1 | district_ID), data = NERD_data)
+fixeff_mod |> summary()
+```
+
+A 1-unit increase in grade level is associated with what change in total per-pupil expenditure? Interpret regardless of fixed effect significance. How much variance at level 1 was "soaked up" by including this variable into the model? *Hint:* use the `sigma()` function as found in the example in 5.2.2 of the Shaw & Flake text. 
+
+```{r}
+null <- sigma(null_mod)^2
+fixed <- sigma(fixeff_mod)^2
+
+(null - fixed) / null
+
+# Compute the variance reduction calculations = ~20%
+```
+
+Calculate the conditional ICC of the new fixed effect model. 
+
+```{r}
+icc(fixeff_mod)
+```
+
+Now that you have entered a fixed effect into the model, reference the conditional (unadjusted) ICC. What percent of total per-pupil expenditures is accounted for by grade level?
+
+After accounting for the effect of school level, **59.6%** of variance in per-pupil expenditure is accounted for by district membership
+
+If you want extra practice, add school enrollment ("enroll_raw_NE") as a level 1 predictor into the conditional model and then re-calculate the reduction in variance and the new conditional ICC. 
+
+```{r}
+fixeff_mod2 <- lmer(pp_total_raw_NE ~ 1 + level + enroll_raw_NE + (1 | district_ID), data = NERD_data)
+fixeff_mod2 |> summary()
+
+fixed2 <- sigma(fixeff_mod2)^2
+
+(null - fixed2) / null
+(fixed - fixed2) / fixed
+
+icc(fixeff_mod2)
+```

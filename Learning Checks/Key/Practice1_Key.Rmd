@@ -1,0 +1,140 @@
+---
+title: "Learning Check 1"
+author: "Jay Jeffries"
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages here using library() or p_load() function from {pacman} package
+```
+
+## Data
+
+This Learning Check will use the *National Educational Resource Database on Schools* (NERD$) dataset available at <https://github.com/jjeffries13/MLM-In-R>. This is an Excel file that includes the state of Nebraska's spending on K-12 education from 2018-2019. You can find the full documentation and codebook [here](https://github.com/jjeffries13/MLM-In-R/blob/main/Practice%20Data/NERD%24%20DOCUMENTATION.pdf).
+
+Import the data using syntax as opposed to point-and-click importing. This helps to create transparent, reproducible files, as future users of this document will not be able to easily track where your cursor went to import the file. If you do not have a preference for importing files in R, check out the `{readxl}` package by running the below code chunk to open its help file. *Missing values are indicated by "NA".*
+
+```{r, include = F}
+if(!require(readxl)){
+    install.packages("readxl")
+    library(readxl)
+}
+
+NE_Spending <- read_excel("/Users/jayjeffries/Desktop/MLM/Practice/MLMBootcamp/Practice Data/NE_EdSpending_Jan28th_22.xlsx", na = "NA")
+```
+
+## Practice Problem 1
+
+Create a multiple regression model that uses school enrollment ("enroll_raw_NE") and grade level ("level") to predict total (i.e., local, state, and federal) expenditure per-pupil ("pp_total_raw_NE"). Be cognizant that grade level is an ordinal variable of five possible ordered categories. The categories include:
+
+* 10- 12: High School (4)
+* 7 - 9: Middle/Junior High (3)
+* 2-6: Elementary (2)
+* PK-1: Early Education (1) 
+* Ungraded: Other (0)
+
+If you wish to, you may make this variable into a factor or set of indicator (dummy-coded) variables. Otherwise, treat it as 0-4 scale.
+
+```{r}
+# Enter multiple regression model here
+lm(pp_total_raw_NE ~ enroll_raw_NE + factor(level), data = NE_Spending) |> summary()
+```
+
+Throw in the interaction between school enrollment and grade level into the same model from above. I would recommend mean-centering the two variables that make up the interaction term (e.g., variable column - mean = new variable column). Note: because we are not acknowledging clustered/nested data yet, this centering will occur at 1 level as the grand mean (i.e., no need for centering within clusters).
+
+If the interaction *is* significant, interpet it by answering whether or not the effect of school enrollment on total expenditures per-pupil depends on grade level. 
+
+```{r, warning = F, message = F}
+# mean-centering the enrollment variable
+NE_Spending$enroll_center <- NE_Spending$enroll_raw_NE - mean(NE_Spending$enroll_raw_NE, na.rm = T)
+
+# using mean-centered variable in place of enroll_raw_NE
+Reg_Mod_int1 <- lm(pp_total_raw_NE ~ enroll_center + factor(level) + enroll_center:factor(level), data = NE_Spending) 
+Reg_Mod_int1 |> summary()
+
+Reg_Mod_int2 <- lm(pp_total_raw_NE ~ enroll_center*factor(level), data = NE_Spending) 
+Reg_Mod_int2 |> summary()
+
+# using enroll_raw_NE
+Reg_Mod_test <- lm(pp_total_raw_NE ~ enroll_raw_NE*factor(level), data = NE_Spending)
+Reg_Mod_test |> summary()
+
+library(ggplot2)
+
+level_colors <- c("#292b32", "#c97963", "#f4f3ef", "#d3c789")
+
+ggplot(NE_Spending) +
+  aes(x = enroll_center, y = pp_total_raw_NE, color = level) +
+  geom_point(color = "grey", shape = 4) +
+  geom_smooth(method = "lm", se = F) +
+  scale_color_manual(values = level_colors) +
+  labs(x = "Per-Pupil Total Expenditure", y = "School Enrollment") +
+  theme_minimal()
+
+ggplot(NE_Spending) +
+  aes(x = enroll_center, y = pp_total_raw_NE) +
+  geom_point(color = "grey", shape = 4) +
+  geom_smooth(method = "lm", se = F) +
+  labs(x = "Per-Pupil Total Expenditure", y = "School Enrollment") +
+  facet_wrap(~level, nrow = 1) +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+I was unable to replicate the plotted interaction term by using the `{sjPlot}` in a similar way that is seen in the Ch. 2.2 of the Shaw & Fleck text. Luckily, this can also be done in `{ggplot2}`, which is what I recommend. If you wish to skip to the link on the Jan 19th agenda to do so, feel free. Otherwise, be cognizant of potential issues with `{sjPlot}` package used in this chapter.
+
+What does the model tell you about this interaction?
+
+<!-- There is a significant interaction between level of education and centered enrollment ($\beta_{level2\times enroll}=-12.4156, SE = 1.4037, t = -8.845, p < .001$). Level two (elementary) school children in schools with greater enrollment receive significantly less money (i.e., per-pupil expenditures) than  -->
+
+## Practice Problem 2
+
+Separately analyze total expenditure per-pupil ("pp_total_raw_NE") by enrollment ("enroll_raw_NE") for each district ("district_ID") by creating a lattice of scatterplots of 15 randomly selected districts. Include a line of best fit. Use facet wrapping and `{ggplot2}` to create a plot that involves scatterplots organized in 3 rows of 5 columns. *Note:* your lattice plot may involve a repeated school district, which is completely fine, but may result in fewer than 15 (3x5) plots!
+
+Use the code below to filter the dataset so that only school districts with more than 1 school is involved in the plot. Schools with missing total per-pupil expenditure will also be dropped. To use the casewise deletion method, ensure that your data was read in so that missing data is identified as "NA" (e.g., `na = "NA"` in the `read_xlsx()` function).
+
+```{r}
+if(!require(tidyr)){
+    install.packages("tidyr")
+    library(tidyr)
+}
+
+library(dplyr)
+
+NE_Spending_new <- NE_Spending |> 
+  group_by(district_ID) |>
+  filter(n() > 1) 
+
+NE_Spending_new <- NE_Spending_new |> drop_na(pp_total_raw_NE)
+
+# Create lattice plot here
+
+# BEFORE running this code chunk, delete "eval = F" in the code chunk's header so that R will evaluate your code :)
+```
+
+When analyzing the lattice plot, do Nebraska schools appear to vary in total per-pupil expenditure *between* districts? Do districts appear to vary *within* districts?
+
+Lattice Plot Answer Key (it was a little hard to do)
+
+```{r, message = F, warning = F}
+set.seed(13131)
+dist_IDs <- sample(NE_Spending_new$district_ID, 15, replace = F)
+
+NE_EdSpending_random <- NE_Spending_new |> filter(district_ID %in% dist_IDs)
+
+plot <- ggplot(NE_EdSpending_random, aes(x = enroll_raw_NE, y = pp_total_raw_NE)) + 
+  geom_point(shape = 1) + 
+  geom_smooth(method = "lm", color = "orange", se = F) + 
+  facet_wrap(~ district_ID, nrow = 3 , ncol = 5) + 
+  labs(x = "Enrollment", y = "Per-Pupil Total Expenditures") +
+  ggtitle("Lattice Plot of Enrollment and Per-Pupil Total Expenditures") +
+  theme_minimal() 
+plot
+```
+

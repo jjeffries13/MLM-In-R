@@ -1,0 +1,91 @@
+---
+title: "Learning Check 4"
+author: "Enter Name Here"
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages here using library() or p_load() function from {pacman} package
+
+# Import the BSA data using the {utils} package read.csv() function
+```
+
+In our previous Learning Check, we have modeled nested data using an unconditional and conditional fixed effects model. This included a fixed and random intercept. When considering the spaghetti plot you created in Practice2, this was appropriate considering the clear differences in intercepts across school districts. 
+
+**But, what about the differences in slopes between each district?**
+
+## Practice Problem 1
+
+We will create a model that involves a cross-level interaction and new random slope. Because the NERD$ dataset does not naturally include level 2 variables, we will move to using the centered-within-cluster (CWC) age variable that was created in Practice3 from the British Social Attitudes survey. 
+
+Predict support of women's reproductive rights by using the predictors "Year", CWC age, and the interaction of Year and CWC age. This can be done in two ways: `Year:CWCAge` or `Year*CWCAge`. The latter will include Year, CWCAge, and Year by CWCAge as separate predictors whereas Year:CWCAge will only compute one coefficient for the interaction. Include a random intercept and slope for district Also include a random slope for CWCAge. That was a lot of words so here is a list of things to put into the model:
+
+* Year
+* Ages
+* Centered-within-clusters Ages
+* The interaction of Year and CWC Age
+* A random intercept for district_ID
+* A random slope for CWC Age
+
+Because we are including both fixed and random effects, we can consider this model a mixed or mixed-effects model! When building the model, use `REML = T` in the `lmer()` function.
+
+```{r}
+# Create the full model here
+```
+
+Create the Tau ($\tau$) matrix for the above model. This is also commonly known as the G-matrix in SAS. This will require the `{Matrix}` package. Ensure that the main diagonal of the Tau matrix matches the output from the model's values under its random effects. The off-diagonal represents the covariance between the random effects. 
+
+```{r}
+# Tau matrix goes here
+```
+
+Using the following equation to calculate the correlation between the intercept and slope:
+
+<p style="text-align: center;"> $\frac{Cov(Intercept, Enrollment)}{sd_{Intercept}\times sd_{Enrollment}}$ </p>
+
+```{r}
+# Compute random effects correlation by hand
+```
+
+If Year is coded as 1 = 1983 ... 4 = 1986, which year is associated with greatest support for women's reproductive rights?
+
+Are respondents who are older than the average age of their district (i.e., centered within-cluster age) more or less likely to support these rights?
+
+Are districts with respondents who are higher than the average age more or less likely to support these rights?
+
+Plot the interaction term involved in the above model using `{ggplot2}`. 
+
+```{r}
+# Plot interaction here
+```
+
+Visually speaking, do you see existing moderation from the interaction plot?
+
+Using the `lmer` model output, what influence does average age of district have on the association between respondent year and support of women's reproductive rights? In other words, does the association between year and support of women's reproductive rights *depend on* the average age of the district that the respondent comes from (or vice-versa)? 
+
+Is this interaction significant?
+
+Decide whether it is worthwhile to retain this interaction by creating the same model but without the interaction term. Then use the `anova()` function (with `refit = F`) to compare model deviances like we did in Practice3. 
+
+```{r}
+# Create (i.e., copy + paste) the model from above but without interaction
+# Compare model deviances
+```
+
+## Practice Problem 3
+
+Use the `r2mlm(model)` function to decompose the better fitting model from above. What type of effects make up the majority of the total variance and between-district variance? 
+
+```{r}
+# Variance decomposition goes here
+```
+
+Using the "Decomposition" estimates **from the better fitting model**, what type of effect (fixed within, fixed between, slope, or mean/intercepts) involves the greatest proportion of variability explained for the total variance?
+
+Using the "Decomposition" estimates **from the better fitting model**, what percent of total proportion of variance is unexplained?
